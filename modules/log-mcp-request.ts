@@ -9,7 +9,7 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
 
     // request.user is populated by mcp-auth0-oauth-inbound after token validation
     const sub = (request.user?.sub as string) ?? "anonymous";
-    const email = (request.user?.data?.email as string) ?? null;
+    const email = (request.user?.data?.["https://zuplo.com/email"] as string) ?? null;
     context.log.debug(`user.data: ${JSON.stringify(request.user?.data)}`);
 
     const method = body?.method ?? "unknown";
