@@ -11,7 +11,7 @@
           "clientId": "$env(AUTH0_CLIENT_ID)",
           "clientSecret": "$env(AUTH0_CLIENT_SECRET)",
           "gateway": {
-            "cimdEnabled": false
+            "cimdEnabled": true
           }
         }
       }
