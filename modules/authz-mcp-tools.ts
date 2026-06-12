@@ -8,13 +8,17 @@ const TOOL_SCOPES: Record<string, string> = {
 };
 
 export async function authzMcpTools(request: ZuploRequest, context: ZuploContext) {
-  const cloned = request.clone();
-  const body = await cloned.json() as {
-    jsonrpc?: string;
-    id?: unknown;
-    method?: string;
-    params?: { name?: string };
-  };
+  // GET requests (SSE stream) have no body — skip
+  if (request.method !== "POST") {
+    return request;
+  }
+
+  let body: { jsonrpc?: string; id?: unknown; method?: string; params?: { name?: string } };
+  try {
+    body = await request.clone().json();
+  } catch {
+    return request;
+  }
 
   // Only enforce on tool calls
   if (body?.method !== "tools/call") {
@@ -40,6 +44,7 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
       grantedScopes,
     }));
 
+    // Return HTTP 200 with a JSON-RPC error — HTTP 4xx causes clients to re-authenticate
     return new Response(
       JSON.stringify({
         jsonrpc: "2.0",
@@ -49,7 +54,7 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
           message: `Forbidden: calling '${toolName}' requires scope '${requiredScope}'`,
         },
       }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
 
