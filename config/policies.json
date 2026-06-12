@@ -33,6 +33,14 @@
       }
     },
     {
+      "name": "authz-mcp-tools",
+      "policyType": "custom-code-inbound",
+      "handler": {
+        "export": "authzMcpTools",
+        "module": "$import(./modules/authz-mcp-tools)"
+      }
+    },
+    {
       "name": "inject-gateway-secret",
       "policyType": "set-headers-inbound",
       "handler": {

@@ -19,7 +19,7 @@
             }
           },
           "policies": {
-            "inbound": ["log-upstream-url", "auth0-managed-oauth", "log-mcp-request", "inject-gateway-secret"]
+            "inbound": ["log-upstream-url", "auth0-managed-oauth", "log-mcp-request", "authz-mcp-tools", "inject-gateway-secret"]
           }
         }
       }
