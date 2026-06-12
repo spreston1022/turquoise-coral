@@ -1,12 +1,25 @@
 import { ZuploContext, ZuploRequest } from "@zuplo/runtime";
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch {
+    return null;
+  }
+}
+
 export async function logMcpRequest(request: ZuploRequest, context: ZuploContext) {
   try {
     const cloned = request.clone();
     const body = await cloned.json() as { method?: string; params?: { name?: string; arguments?: unknown }; id?: unknown };
 
-    const user = context.user;
-    context.log.info(`context.user raw: ${JSON.stringify(user)}`);
+    const authHeader = request.headers.get('Authorization') ?? '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const claims = token ? decodeJwtPayload(token) : null;
+    const sub = (claims?.sub as string) ?? "anonymous";
+    const email = (claims?.email as string) ?? null;
+
     const method = body?.method ?? "unknown";
     const toolName = body?.params?.name ?? null;
     const toolArgs = body?.params?.arguments ?? null;
@@ -14,10 +27,7 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
     context.log.info(JSON.stringify({
       event: "mcp_request",
       requestId: context.requestId,
-      user: {
-        sub: user?.sub ?? "anonymous",
-        email: (user?.data as Record<string, unknown>)?.email ?? null,
-      },
+      user: { sub, email },
       mcp: {
         method,
         ...(toolName ? { tool: toolName } : {}),
