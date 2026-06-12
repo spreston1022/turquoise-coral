@@ -3,7 +3,7 @@ import { ZuploContext, ZuploRequest } from "@zuplo/runtime";
 // Map tool names to the scope required to call them
 const TOOL_SCOPES: Record<string, string> = {
   echo: "mcp:tools",
-  get_current_time: "mcp:time",
+  get_current_time: "time:read",
   generate_uuid: "mcp:tools",
 };
 
