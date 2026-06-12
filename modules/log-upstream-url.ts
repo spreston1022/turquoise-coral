@@ -1,6 +1,6 @@
-import { ZuploContext, ZuploRequest } from "@zuplo/runtime";
+import { ZuploContext, ZuploRequest, environment } from "@zuplo/runtime";
 
 export async function logUpstreamUrl(request: ZuploRequest, context: ZuploContext) {
-  context.log.info(`MCP_UPSTREAM_URL resolved: ${process.env.MCP_UPSTREAM_URL}`);
+  context.log.info(`MCP_UPSTREAM_URL resolved: ${environment.MCP_UPSTREAM_URL}`);
   return request;
 }
