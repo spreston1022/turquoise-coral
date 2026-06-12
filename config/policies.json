@@ -1,6 +1,14 @@
 {
   "policies": [
     {
+      "name": "log-upstream-url",
+      "policyType": "custom-code-inbound",
+      "handler": {
+        "export": "logUpstreamUrl",
+        "module": "$import(./modules/log-upstream-url)"
+      }
+    },
+    {
       "name": "auth0-managed-oauth",
       "policyType": "mcp-auth0-oauth-inbound",
       "handler": {
