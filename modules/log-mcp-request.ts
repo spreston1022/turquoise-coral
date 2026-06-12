@@ -19,6 +19,12 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
     const claims = token ? decodeJwtPayload(token) : null;
     const sub = (claims?.sub as string) ?? "anonymous";
     const email = (claims?.email as string) ?? null;
+    const sessionId = request.headers.get('mcp-session-id') ?? null;
+
+    // Dump all incoming headers to identify where identity information lives
+    const allHeaders: Record<string, string> = {};
+    request.headers.forEach((value, key) => { allHeaders[key] = value; });
+    context.log.debug(`mcp-request headers: ${JSON.stringify(allHeaders)}`);
 
     const method = body?.method ?? "unknown";
     const toolName = body?.params?.name ?? null;
@@ -27,6 +33,7 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
     context.log.info(JSON.stringify({
       event: "mcp_request",
       requestId: context.requestId,
+      session: sessionId,
       user: { sub, email },
       mcp: {
         method,
