@@ -15,6 +15,8 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
     const body = await cloned.json() as { method?: string; params?: { name?: string; arguments?: unknown }; id?: unknown };
 
     const authHeader = request.headers.get('Authorization') ?? '';
+    context.log.info(`Authorization header: ${authHeader.slice(0, 50)}...`);
+    context.log.info(`All headers: ${JSON.stringify(Object.fromEntries(request.headers))}`);
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     const claims = token ? decodeJwtPayload(token) : null;
     const sub = (claims?.sub as string) ?? "anonymous";
