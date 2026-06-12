@@ -32,7 +32,10 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
     return request;
   }
 
-  const grantedScopes = ((request.user?.data as Record<string, unknown>)?.scope as string ?? "").split(" ");
+  const data = request.user?.data as Record<string, unknown> | undefined;
+  const scopeStr = (data?.scope as string ?? "").split(" ");
+  const permissions = (data?.permissions as string[] | undefined) ?? [];
+  const grantedScopes = [...new Set([...scopeStr, ...permissions])];
 
   if (!grantedScopes.includes(requiredScope)) {
     context.log.warn(JSON.stringify({
