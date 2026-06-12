@@ -7,7 +7,7 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
 
     const sessionId = request.headers.get('mcp-session-id') ?? null;
 
-    context.log.debug(`request.user full: ${JSON.stringify(request.user)}`);
+    context.log.info(`request.user full: ${JSON.stringify(request.user)}`);
 
     // request.user is populated by mcp-auth0-oauth-inbound after token validation
     // Zuplo issues its own token — Auth0 profile claims (email) are not forwarded
