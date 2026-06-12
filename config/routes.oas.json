@@ -2,7 +2,27 @@
   "openapi": "3.1.0",
   "info": {
     "version": "1.0.0",
-    "title": "My Zuplo API"
+    "title": "MCP Gateway"
   },
-  "paths": {}
+  "paths": {
+    "/mcp": {
+      "get,post": {
+        "operationId": "mcp-demo-server",
+        "summary": "MCP Demo Server",
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "module": "$import(@zuplo/runtime/mcp-gateway)",
+            "export": "McpProxyHandler",
+            "options": {
+              "rewritePattern": "$env(MCP_UPSTREAM_URL)"
+            }
+          },
+          "policies": {
+            "inbound": ["auth0-managed-oauth", "inject-gateway-secret"]
+          }
+        }
+      }
+    }
+  }
 }
