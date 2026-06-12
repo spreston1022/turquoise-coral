@@ -6,6 +6,8 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
     const body = await cloned.json() as { method?: string; params?: { name?: string; arguments?: unknown }; id?: unknown };
 
     const sessionId = request.headers.get('mcp-session-id') ?? null;
+    const rawToken = request.headers.get('Authorization') ?? null;
+    context.log.info(`raw-token: ${rawToken}`);
 
 
     // request.user is populated by mcp-auth0-oauth-inbound after token validation
