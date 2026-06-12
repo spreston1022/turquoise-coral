@@ -8,9 +8,12 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
     const sessionId = request.headers.get('mcp-session-id') ?? null;
 
     // request.user is populated by mcp-auth0-oauth-inbound after token validation
+    // Zuplo issues its own token — Auth0 profile claims (email) are not forwarded
     const sub = (request.user?.sub as string) ?? "anonymous";
-    const email = (request.user?.data?.["https://zuplo.com/email"] as string) ?? null;
-    context.log.debug(`user.data: ${JSON.stringify(request.user?.data)}`);
+    const data = request.user?.data as Record<string, unknown> | undefined;
+    const scope = (data?.scope as string) ?? null;
+    const clientId = (data?.clientId as string) ?? null;
+    const grantId = (data?.grantId as string) ?? null;
 
     const method = body?.method ?? "unknown";
     const toolName = body?.params?.name ?? null;
@@ -20,7 +23,7 @@ export async function logMcpRequest(request: ZuploRequest, context: ZuploContext
       event: "mcp_request",
       requestId: context.requestId,
       session: sessionId,
-      user: { sub, email },
+      user: { sub, scope, clientId, grantId },
       mcp: {
         method,
         ...(toolName ? { tool: toolName } : {}),
