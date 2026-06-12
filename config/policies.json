@@ -25,6 +25,14 @@
       }
     },
     {
+      "name": "log-mcp-request",
+      "policyType": "custom-code-inbound",
+      "handler": {
+        "export": "logMcpRequest",
+        "module": "$import(./modules/log-mcp-request)"
+      }
+    },
+    {
       "name": "inject-gateway-secret",
       "policyType": "set-headers-inbound",
       "handler": {
