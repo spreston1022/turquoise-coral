@@ -1,17 +1,51 @@
-import { ZuploContext, ZuploRequest } from "@zuplo/runtime";
+import { ZuploContext, ZuploRequest, environment } from "@zuplo/runtime";
 
-// Map tool names to the scope required to call them
 const TOOL_SCOPES: Record<string, string> = {
   echo: "mcp:tools",
   get_current_time: "time:read",
   generate_uuid: "mcp:tools",
 };
 
-export async function authzMcpTools(request: ZuploRequest, context: ZuploContext) {
-  // GET requests (SSE stream) have no body — skip
-  if (request.method !== "POST") {
-    return request;
+// Cached Management API token to avoid fetching on every request
+let mgmtTokenCache: { token: string; expiresAt: number } | null = null;
+
+async function getManagementToken(): Promise<string> {
+  if (mgmtTokenCache && Date.now() < mgmtTokenCache.expiresAt) {
+    return mgmtTokenCache.token;
   }
+  const domain = environment.AUTH0_DOMAIN;
+  const resp = await fetch(`https://${domain}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: environment.AUTH0_MGMT_CLIENT_ID,
+      client_secret: environment.AUTH0_MGMT_CLIENT_SECRET,
+      audience: `https://${domain}/api/v2/`,
+    }),
+  });
+  const data = await resp.json() as { access_token: string; expires_in: number };
+  mgmtTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+  };
+  return mgmtTokenCache.token;
+}
+
+async function getUserPermissions(userId: string): Promise<string[]> {
+  const token = await getManagementToken();
+  const domain = environment.AUTH0_DOMAIN;
+  const resp = await fetch(
+    `https://${domain}/api/v2/users/${encodeURIComponent(userId)}/permissions`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!resp.ok) return [];
+  const data = await resp.json() as { permission_name: string }[];
+  return data.map((p) => p.permission_name);
+}
+
+export async function authzMcpTools(request: ZuploRequest, context: ZuploContext) {
+  if (request.method !== "POST") return request;
 
   let body: { jsonrpc?: string; id?: unknown; method?: string; params?: { name?: string } };
   try {
@@ -20,34 +54,38 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
     return request;
   }
 
-  // Only enforce on tool calls
-  if (body?.method !== "tools/call") {
-    return request;
-  }
+  if (body?.method !== "tools/call") return request;
 
   const toolName = body?.params?.name;
   const requiredScope = toolName ? TOOL_SCOPES[toolName] : undefined;
 
-  if (!requiredScope) {
-    return request;
+  // Only call Management API for tools that need more than mcp:tools
+  if (!requiredScope || requiredScope === "mcp:tools") return request;
+
+  // Zuplo sub format: "https://{domain}|{userId}" — extract the Auth0 user ID
+  const sub = (request.user?.sub as string) ?? "";
+  const parts = sub.split("|");
+  const userId = parts.length >= 3
+    ? `${parts[parts.length - 2]}|${parts[parts.length - 1]}`
+    : sub;
+
+  let permissions: string[] = [];
+  try {
+    permissions = await getUserPermissions(userId);
+  } catch (err) {
+    context.log.warn(`authz-mcp-tools: management API call failed: ${err}`);
   }
 
-  const data = request.user?.data as Record<string, unknown> | undefined;
-  const scopeStr = (data?.scope as string ?? "").split(" ");
-  const permissions = (data?.permissions as string[] | undefined) ?? [];
-  const grantedScopes = [...new Set([...scopeStr, ...permissions])];
-
-  if (!grantedScopes.includes(requiredScope)) {
+  if (!permissions.includes(requiredScope)) {
     context.log.warn(JSON.stringify({
       event: "mcp_authz_denied",
       requestId: context.requestId,
-      user: { sub: request.user?.sub ?? "anonymous" },
+      user: { sub },
       tool: toolName,
       requiredScope,
-      grantedScopes,
+      grantedPermissions: permissions,
     }));
 
-    // Return HTTP 200 with a JSON-RPC error — HTTP 4xx causes clients to re-authenticate
     return new Response(
       JSON.stringify({
         jsonrpc: "2.0",
