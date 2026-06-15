@@ -15,11 +15,11 @@
             "module": "$import(@zuplo/runtime/mcp-gateway)",
             "export": "McpProxyHandler",
             "options": {
-              "rewritePattern": "${env.MCP_UPSTREAM_URL}"
+              "rewritePattern": "https://demo-mcp-server.spreston1022.workers.dev/mcp"
             }
           },
           "policies": {
-            "inbound": ["log-upstream-url", "auth0-managed-oauth", "log-mcp-request", "authz-mcp-tools", "inject-gateway-secret"]
+            "inbound": ["auth0-managed-oauth", "log-mcp-request", "authz-mcp-tools", "inject-gateway-secret"]
           }
         }
       }
