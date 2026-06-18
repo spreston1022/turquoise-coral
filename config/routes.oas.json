@@ -19,7 +19,13 @@
             }
           },
           "policies": {
-            "inbound": ["auth0-managed-oauth", "log-mcp-request", "authz-mcp-tools", "inject-gateway-secret"]
+            "inbound": [
+              "auth0-managed-oauth",
+              "log-mcp-request",
+              "authz-mcp-tools",
+              "inject-gateway-secret",
+              "custom-code-inbound"
+            ]
           }
         }
       }

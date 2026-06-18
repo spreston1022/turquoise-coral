@@ -57,6 +57,14 @@
           ]
         }
       }
+    },
+    {
+      "handler": {
+        "export": "default",
+        "module": "$import(./modules/log-user)"
+      },
+      "name": "custom-code-inbound",
+      "policyType": "custom-code-inbound"
     }
   ]
 }
