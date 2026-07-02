@@ -10,6 +10,7 @@
     "docs": "zuplo docs"
   },
   "dependencies": {
+    "@zuplo/otel": "^6",
     "zuplo": "^6"
   },
   "devDependencies": {
