@@ -64,8 +64,9 @@ const config: ZudokuConfig = {
     },
     {
       type: "link",
-      to: "/api",
-      label: "API Reference",
+      to: "/api/mcp-demo-server",
+      label: "MCP Gateway",
+      icon: "bot",
     },
   ],
   redirects: [{ from: "/", to: "/api" }],
