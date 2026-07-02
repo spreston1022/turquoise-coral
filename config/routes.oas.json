@@ -6,13 +6,37 @@
   },
   "servers": [
     {
-      "url": "https://turquoise-coral-main-88d11f0.zuplo.app",
+      "url": "https://turquoise-coral-main-d16656d.zuplo.app",
       "description": "Production gateway"
     }
   ],
   "paths": {
     "/mcp": {
-      "get,post": {
+      "get": {
+        "operationId": "mcp-demo-server-stream",
+        "summary": "MCP Demo Server (SSE stream)",
+        "x-internal": true,
+        "x-zuplo-route": {
+          "corsPolicy": "none",
+          "handler": {
+            "module": "$import(@zuplo/runtime/mcp-gateway)",
+            "export": "McpProxyHandler",
+            "options": {
+              "rewritePattern": "https://demo-mcp-server.spreston1022.workers.dev/mcp"
+            }
+          },
+          "policies": {
+            "inbound": [
+              "auth0-managed-oauth",
+              "log-mcp-request",
+              "authz-mcp-tools",
+              "inject-gateway-secret",
+              "custom-code-inbound"
+            ]
+          }
+        }
+      },
+      "post": {
         "operationId": "mcp-demo-server",
         "summary": "MCP Demo Server",
         "description": "Remote MCP server exposing demo tools behind Zuplo's MCP Gateway. Requires signing in via Auth0 OAuth.\n\n**Available tools:**\n- `echo` — echoes back the provided message\n- `get_current_time` — returns the current server time (requires `time:read` scope)\n- `generate_uuid` — generates a random UUID",
