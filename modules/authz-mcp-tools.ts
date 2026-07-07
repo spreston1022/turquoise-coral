@@ -9,8 +9,9 @@ const TOOL_SCOPES: Record<string, string> = {
 // Cached Management API token to avoid fetching on every request
 let mgmtTokenCache: { token: string; expiresAt: number } | null = null;
 
-async function getManagementToken(): Promise<string> {
+async function getManagementToken(context: ZuploContext): Promise<string> {
   if (mgmtTokenCache && Date.now() < mgmtTokenCache.expiresAt) {
+    context.log.info(JSON.stringify({ event: "mgmt_token_cache_hit" }));
     return mgmtTokenCache.token;
   }
   const domain = environment.AUTH0_DOMAIN;
@@ -24,7 +25,17 @@ async function getManagementToken(): Promise<string> {
       audience: `https://${domain}/api/v2/`,
     }),
   });
+  if (!resp.ok) {
+    const errBody = await resp.text();
+    context.log.warn(JSON.stringify({
+      event: "mgmt_token_fetch_failed",
+      status: resp.status,
+      body: errBody,
+    }));
+    throw new Error(`Management API token fetch failed: ${resp.status} ${errBody}`);
+  }
   const data = await resp.json() as { access_token: string; expires_in: number };
+  context.log.info(JSON.stringify({ event: "mgmt_token_fetch_succeeded", expiresIn: data.expires_in }));
   mgmtTokenCache = {
     token: data.access_token,
     expiresAt: Date.now() + (data.expires_in - 60) * 1000,
@@ -32,16 +43,30 @@ async function getManagementToken(): Promise<string> {
   return mgmtTokenCache.token;
 }
 
-async function getUserPermissions(userId: string): Promise<string[]> {
-  const token = await getManagementToken();
+async function getUserPermissions(userId: string, context: ZuploContext): Promise<string[]> {
+  const token = await getManagementToken(context);
   const domain = environment.AUTH0_DOMAIN;
-  const resp = await fetch(
-    `https://${domain}/api/v2/users/${encodeURIComponent(userId)}/permissions`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (!resp.ok) return [];
+  const url = `https://${domain}/api/v2/users/${encodeURIComponent(userId)}/permissions`;
+  context.log.info(JSON.stringify({ event: "mgmt_api_permissions_lookup_started", userId, url }));
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) {
+    const body = await resp.text();
+    context.log.warn(JSON.stringify({
+      event: "mgmt_api_permissions_lookup_failed",
+      userId,
+      status: resp.status,
+      body,
+    }));
+    return [];
+  }
   const data = await resp.json() as { permission_name: string }[];
-  return data.map((p) => p.permission_name);
+  const permissions = data.map((p) => p.permission_name);
+  context.log.info(JSON.stringify({
+    event: "mgmt_api_permissions_lookup_succeeded",
+    userId,
+    permissions,
+  }));
+  return permissions;
 }
 
 export async function authzMcpTools(request: ZuploRequest, context: ZuploContext) {
@@ -59,8 +84,23 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
   const toolName = body?.params?.name;
   const requiredScope = toolName ? TOOL_SCOPES[toolName] : undefined;
 
+  context.log.info(JSON.stringify({
+    event: "mcp_authz_check_started",
+    requestId: context.requestId,
+    tool: toolName,
+    requiredScope,
+  }));
+
   // Only call Management API for tools that need more than mcp:tools
-  if (!requiredScope || requiredScope === "mcp:tools") return request;
+  if (!requiredScope || requiredScope === "mcp:tools") {
+    context.log.info(JSON.stringify({
+      event: "mcp_authz_check_skipped",
+      requestId: context.requestId,
+      tool: toolName,
+      reason: "no elevated scope required",
+    }));
+    return request;
+  }
 
   // Zuplo sub format: "https://{domain}|{userId}" — extract the Auth0 user ID
   const sub = (request.user?.sub as string) ?? "";
@@ -69,11 +109,23 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
     ? `${parts[parts.length - 2]}|${parts[parts.length - 1]}`
     : sub;
 
+  context.log.info(JSON.stringify({
+    event: "mcp_authz_user_resolved",
+    requestId: context.requestId,
+    sub,
+    userId,
+  }));
+
   let permissions: string[] = [];
   try {
-    permissions = await getUserPermissions(userId);
+    permissions = await getUserPermissions(userId, context);
   } catch (err) {
-    context.log.warn(`authz-mcp-tools: management API call failed: ${err}`);
+    context.log.warn(JSON.stringify({
+      event: "mcp_authz_permissions_lookup_threw",
+      requestId: context.requestId,
+      userId,
+      error: String(err),
+    }));
   }
 
   if (!permissions.includes(requiredScope)) {
@@ -103,6 +155,15 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  context.log.info(JSON.stringify({
+    event: "mcp_authz_allowed",
+    requestId: context.requestId,
+    sub,
+    tool: toolName,
+    requiredScope,
+    grantedPermissions: permissions,
+  }));
 
   return request;
 }
