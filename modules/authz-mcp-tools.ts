@@ -90,9 +90,14 @@ export async function authzMcpTools(request: ZuploRequest, context: ZuploContext
       JSON.stringify({
         jsonrpc: "2.0",
         id: body.id,
-        error: {
-          code: -32001,
-          message: `Forbidden: calling '${toolName}' requires scope '${requiredScope}'`,
+        result: {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Permission denied: the '${toolName}' tool requires the '${requiredScope}' scope, which is not included in your current authorization. This is a permissions/scope issue, not a transient error — ask your administrator to grant the '${requiredScope}' permission to retry.`,
+            },
+          ],
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
